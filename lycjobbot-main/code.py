@@ -1,4 +1,6 @@
 import logging
+
+from telebot.apihelper import get_chat_member
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Updater,
@@ -7,6 +9,7 @@ from telegram.ext import (
     ConversationHandler,
     CallbackContext,
     MessageHandler, Filters)
+
 import jobdata
 
 # Enable logging
@@ -23,17 +26,18 @@ ZERO, ONE, TWO, FIND_JOB, THREE, CONTENT, COMPUTER_HELP, PROGRAMMING, HELP_HOMEW
 LANGUAGES, SERVING, F_CONTENT, F_COMPUTER_HELP, F_PROGRAMMING, F_HELP_HOMEWORK, F_VOLUNTEER, F_MARKETING, \
 F_LANGUAGES, F_SERVING, VACANCIES, NAME, PAY_CARD_OR_CASH, UPLOADER, WITHOUT_MONEY, ACCEPT, INFO = \
     range(28)
-INFO_ABOUT_CLIENT = {}
-ALREADY_WATCHED = []
 NEEDED = []
 LASTID = []
 SEEN_VACANCY = []
+ACTIVE_USERS = {}
 
 
 def start(update: Update, context: CallbackContext) -> None:
     """Send message on `/start`."""
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.first_name)
+    ACTIVE_USERS[user.id] = {}
+    logger.info(ACTIVE_USERS)
     keyboard = [
         [
             InlineKeyboardButton("Создать/изменить вакансию", callback_data=str(ONE)),
@@ -108,8 +112,7 @@ def one(update: Update, context: CallbackContext) -> None:
 def find_job(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    NEEDED.clear()
-    ALREADY_WATCHED.clear()
+
     keyboard = [
         [
             InlineKeyboardButton("Создание контента", callback_data=str(F_CONTENT)),
@@ -160,7 +163,7 @@ def two(update: Update, context: CallbackContext) -> None:
 def content(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Создание контента"
+    ACTIVE_USERS[update.message.from_user.id]["type_of_work"] = "Создание контента"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -174,7 +177,7 @@ def content(update: Update, context: CallbackContext) -> None:
 def computer_help(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Компьютерная помощь"
+    ACTIVE_USERS[update.message_id]["type_of_work"] = "Компьютерная помощь"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -188,7 +191,7 @@ def computer_help(update: Update, context: CallbackContext) -> None:
 def programming(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Программирование"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Программирование"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -202,7 +205,7 @@ def programming(update: Update, context: CallbackContext) -> None:
 def help_homework(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Уроки(помощь)"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Уроки(помощь)"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -216,7 +219,7 @@ def help_homework(update: Update, context: CallbackContext) -> None:
 def volunteer(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Волонтерская помощь"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Волонтерская помощь"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -230,7 +233,7 @@ def volunteer(update: Update, context: CallbackContext) -> None:
 def marketing(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Маркетинг"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Маркетинг"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -244,7 +247,7 @@ def marketing(update: Update, context: CallbackContext) -> None:
 def languages(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
-    INFO_ABOUT_CLIENT["type_of_work"] = "Языки"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Языки"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -259,7 +262,7 @@ def serving(update: Update, context: CallbackContext) -> None:
     query = update.callback_query
     query.answer()
 
-    INFO_ABOUT_CLIENT["type_of_work"] = "Обслуживание"
+    ACTIVE_USERS[update.message.user.id]["type_of_work"] = "Обслуживание"
     keyboard = [[InlineKeyboardButton("Назад", callback_data=str(TWO))]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query = update.callback_query
@@ -271,9 +274,9 @@ def serving(update: Update, context: CallbackContext) -> None:
 
 
 def name(update: Update, context: CallbackContext) -> None:
-    INFO_ABOUT_CLIENT["user_id"] = update.message.chat.username
     text = update.message.text
-    INFO_ABOUT_CLIENT["name_of_vacancy"] = text
+    ACTIVE_USERS[update.message.user.id]["user_id"] = update.message.chat.username
+    ACTIVE_USERS[update.message.user.id]["name_of_vacancy"] = text
     update.message.reply_text(
         text="Введите описание вакансии"
     )
@@ -282,7 +285,7 @@ def name(update: Update, context: CallbackContext) -> None:
 
 def info_about_vacancy(update: Update, context: CallbackContext) -> None:
     text = update.message.text
-    INFO_ABOUT_CLIENT["about_vacancy"] = text
+    ACTIVE_USERS[update.message.user.id]["about_vacancy"] = text
     keyboard = [
         [
             InlineKeyboardButton("Сдельная", callback_data=str(PAY_CARD_OR_CASH))], [
@@ -300,7 +303,7 @@ def info_about_vacancy(update: Update, context: CallbackContext) -> None:
 
 
 def pay_card_or_cash(update: Update, context: CallbackContext) -> None:
-    INFO_ABOUT_CLIENT["payment"] = "Сдельная"
+    ACTIVE_USERS[update.message.user.id]["payment"] = "Сдельная"
     query = update.callback_query
     query.answer()
     query.message.reply_text(
@@ -311,13 +314,13 @@ def pay_card_or_cash(update: Update, context: CallbackContext) -> None:
 
 def cost(update: Update, context: CallbackContext) -> None:
     text = update.message.text
-    INFO_ABOUT_CLIENT["cost"] = text
+    ACTIVE_USERS[update.message.user.id]["cost"] = text
     update.message.reply_text(text="Укажите срок выполнения работы")
     return DEADLINE
 
 
 def without_money(update: Update, context: CallbackContext) -> None:
-    INFO_ABOUT_CLIENT["payment"] = "Безвозмездная работа"
+    ACTIVE_USERS[update.message.user.id]["payment"] = "Безвозмездная работа"
     query = update.callback_query
     query.answer()
     query.message.reply_text(
@@ -329,54 +332,59 @@ def without_money(update: Update, context: CallbackContext) -> None:
 def deadline(update: Update, context: CallbackContext) -> None:
     text = update.message.text
     print(update.message.from_user)
-    INFO_ABOUT_CLIENT["deadline"] = text
+    ACTIVE_USERS[update.message.user.id]["deadline"] = text
     keyboard = [
         [
             InlineKeyboardButton("Создать", callback_data=str(CREATE)),
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    if 'cost' in INFO_ABOUT_CLIENT:
+
+    if 'cost' in ACTIVE_USERS[update.message.user.id]:
         update.message.reply_text(
             text="Название: {} \nТип: {} \nОписание: {} \nОплата: {} \nЦена: {} \nСрок: {}".format(
-                INFO_ABOUT_CLIENT["name_of_vacancy"], INFO_ABOUT_CLIENT["type_of_work"],
-                INFO_ABOUT_CLIENT["about_vacancy"],
-                INFO_ABOUT_CLIENT["payment"], INFO_ABOUT_CLIENT["cost"], INFO_ABOUT_CLIENT["deadline"]),
+                ACTIVE_USERS[update.message.user.id]["name_of_vacancy"],
+                ACTIVE_USERS[update.message.user.id]["type_of_work"],
+                ACTIVE_USERS[update.message.user.id]["about_vacancy"],
+                ACTIVE_USERS[update.message.user.id]["payment"], ACTIVE_USERS[update.message.user.id]["cost"],
+                ACTIVE_USERS[update.message.user.id]["deadline"]),
             reply_markup=reply_markup
         )
     else:
         update.message.reply_text(
             text="Название: {} \nТип: {} \nОписание: {} \nОплата: {} \nСрок: {}".format(
-                INFO_ABOUT_CLIENT["name_of_vacancy"], INFO_ABOUT_CLIENT["type_of_work"],
-                INFO_ABOUT_CLIENT["about_vacancy"],
-                INFO_ABOUT_CLIENT["payment"], INFO_ABOUT_CLIENT["deadline"]), reply_markup=reply_markup
+                ACTIVE_USERS[update.message.user.id]["name_of_vacancy"],
+                ACTIVE_USERS[update.message.user.id]["type_of_work"],
+                ACTIVE_USERS[update.message.user.id]["about_vacancy"],
+                ACTIVE_USERS[update.message.user.id]["payment"], ACTIVE_USERS[update.message.user.id]["deadline"]),
+            reply_markup=reply_markup
         )
     return CREATE
 
 
 def create(update: Update, context: CallbackContext) -> None:
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Компьютерная помощь":
-        jobdata.PCColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Программирование":
-        jobdata.ProgColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Уроки(помощь)":
-        jobdata.LessColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Волонтерская помощь":
-        jobdata.VolColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Маркетинг":
-        jobdata.MarkColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Языки":
-        jobdata.LangColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Обслуживание":
-        jobdata.ServColl.insert_one(INFO_ABOUT_CLIENT)
-    if INFO_ABOUT_CLIENT["type_of_work"] == "Создание контента":
-        jobdata.ContColl.insert_one(INFO_ABOUT_CLIENT)
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Компьютерная помощь":
+        jobdata.PCColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Программирование":
+        jobdata.ProgColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Уроки(помощь)":
+        jobdata.LessColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Волонтерская помощь":
+        jobdata.VolColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Маркетинг":
+        jobdata.MarkColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Языки":
+        jobdata.LangColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Обслуживание":
+        jobdata.ServColl.insert_one(ACTIVE_USERS[update.message.user.id])
+    if ACTIVE_USERS[update.message.user.id]["type_of_work"] == "Создание контента":
+        jobdata.ContColl.insert_one(ACTIVE_USERS[update.message.user.id])
     query = update.callback_query
     query.answer()
     query.message.reply_text(
         text="Вакансия успешно создана."
     )
-    INFO_ABOUT_CLIENT.clear()
+    ACTIVE_USERS[update.message.user.id].clear()
     return ConversationHandler.END
 
 
@@ -763,6 +771,7 @@ def main():
             PAY: [CallbackQueryHandler(pay_card_or_cash, pattern='^' + str(PAY_CARD_OR_CASH) + '$'),
                   CallbackQueryHandler(without_money, pattern='^' + str(WITHOUT_MONEY) + '$'),
                   ],
+
             INFO_ABOUT_VACANCY: [CommandHandler('start', start), MessageHandler(Filters.text, info_about_vacancy)],
             DEADLINE: [CommandHandler('start', start), MessageHandler(Filters.text, deadline)],
             CREATE: [CallbackQueryHandler(create, pattern='^' + str(CREATE) + '$')],
